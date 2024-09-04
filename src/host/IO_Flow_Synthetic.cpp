@@ -71,6 +71,7 @@ IO_Flow_Synthetic::IO_Flow_Synthetic(const sim_object_id_type &name, uint16_t fl
 		delete random_time_interval_generator;
 	}
 
+	//用于生成合成的I/O请求
 	Host_IO_Request* IO_Flow_Synthetic::Generate_next_request()
 	{
 		if (stop_time > 0) {
@@ -92,7 +93,7 @@ IO_Flow_Synthetic::IO_Flow_Synthetic(const sim_object_id_type &name, uint16_t fl
 
 		switch (request_size_distribution) {
 			case Utils::Request_Size_Distribution_Type::FIXED:
-				request->LBA_count = average_request_size;
+				request->LBA_count = average_request_size;								//LBA_count是请求的大小（以逻辑块为单位）
 				break;
 			case Utils::Request_Size_Distribution_Type::NORMAL:
 			{

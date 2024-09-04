@@ -79,10 +79,10 @@ SSD_Device::SSD_Device(Device_Parameter_Set *parameters, std::vector<IO_Flow_Par
 		{
 		case SSD_Components::ONFI_Protocol::NVDDR2:
 		{
-			SSD_Components::ONFI_Channel_NVDDR2 **channels = new SSD_Components::ONFI_Channel_NVDDR2 *[parameters->Flash_Channel_Count];
+			SSD_Components::ONFI_Channel_NVDDR2 **channels = new SSD_Components::ONFI_Channel_NVDDR2 *[parameters->Flash_Channel_Count];//创建指针数组channels
 			for (unsigned int channel_cntr = 0; channel_cntr < parameters->Flash_Channel_Count; channel_cntr++)
 			{
-				NVM::FlashMemory::Flash_Chip **chips = new NVM::FlashMemory::Flash_Chip *[parameters->Chip_No_Per_Channel];
+				NVM::FlashMemory::Flash_Chip **chips = new NVM::FlashMemory::Flash_Chip *[parameters->Chip_No_Per_Channel];//创建对应channel上的指针数组chips
 				for (unsigned int chip_cntr = 0; chip_cntr < parameters->Chip_No_Per_Channel; chip_cntr++)
 				{
 					chips[chip_cntr] = new NVM::FlashMemory::Flash_Chip(device->ID() + ".Channel." + std::to_string(channel_cntr) + ".Chip." + std::to_string(chip_cntr),
@@ -90,7 +90,7 @@ SSD_Device::SSD_Device(Device_Parameter_Set *parameters, std::vector<IO_Flow_Par
 																		parameters->Flash_Parameters.Block_No_Per_Plane, parameters->Flash_Parameters.Page_No_Per_Block,
 																		read_latencies, write_latencies, parameters->Flash_Parameters.Block_Erase_Latency,
 																		parameters->Flash_Parameters.Suspend_Program_Time, parameters->Flash_Parameters.Suspend_Erase_Time);
-					Simulator->AddObject(chips[chip_cntr]); //Each simulation object (a child of MQSimEngine::Sim_Object) should be added to the engine
+					Simulator->AddObject(chips[chip_cntr]); //如果是四个通道，每个通道四个芯片，那一共添加了16次，每次添加一个芯片的指针。Each simulation object (a child of MQSimEngine::Sim_Object) should be added to the engine
 				}
 				channels[channel_cntr] = new SSD_Components::ONFI_Channel_NVDDR2(channel_cntr, parameters->Chip_No_Per_Channel,
 																				 chips, parameters->Flash_Channel_Width,
@@ -117,6 +117,7 @@ SSD_Device::SSD_Device(Device_Parameter_Set *parameters, std::vector<IO_Flow_Par
 														   parameters->Flash_Parameters.Page_Capacity / SECTOR_SIZE_IN_BYTE, average_flash_read_latency, average_flash_write_latency, parameters->Overprovisioning_Ratio,
 														   parameters->Flash_Parameters.Block_PE_Cycles_Limit, parameters->Seed++);
 		ftl->PHY = (SSD_Components::NVM_PHY_ONFI *)PHY;
+	
 		Simulator->AddObject(ftl);
 		device->Firmware = ftl;
 

@@ -50,10 +50,13 @@ namespace NVM
 					STAT_totalOverlappedXferExecTime += (Simulator->Time() - lastTransferStart);
 				this->Dies[command->Address[0].DieID]->STAT_TotalXferTime += (Simulator->Time() - lastTransferStart);
 
-				start_command_execution(command);
+				start_command_execution(command);   //这里是真正对die执行命令的操作
 
 				this->lastTransferStart = INVALID_TIME;
 			}
+
+
+			//下面这些对时间的记录是记录chip相关的传输时长。
 			void EndCMDDataInXfer(Flash_Command* command)//End transferring write data of a group of multi-plane transactions to the Flash chip
 			{
 				this->STAT_totalXferTime += (Simulator->Time() - this->lastTransferStart);
@@ -61,10 +64,12 @@ namespace NVM
 					STAT_totalOverlappedXferExecTime += (Simulator->Time() - lastTransferStart);
 				this->Dies[command->Address[0].DieID]->STAT_TotalXferTime += (Simulator->Time() - lastTransferStart);
 
-				start_command_execution(command);
+				start_command_execution(command);//这是用于模拟chip上的写操作，执行完这个函数说明已经完成了命令和数据传输到chip后的相关操作
 
 				this->lastTransferStart = INVALID_TIME;
 			}
+
+			//读阶段将数据传回控制器的传输函数，用STAT_totalXferTime记录此chip在总线上传输的时间
 			void EndDataOutXfer(Flash_Command* command)
 			{
 				this->STAT_totalXferTime += (Simulator->Time() - this->lastTransferStart);

@@ -270,7 +270,7 @@ int main(int argc, char* argv[])
 
 	Execution_Parameter_Set* exec_params = new Execution_Parameter_Set;
 	read_configuration_parameters(ssd_config_file_path, exec_params);
-	std::vector<std::vector<IO_Flow_Parameter_Set*>*>* io_scenarios = read_workload_definitions(workload_defs_file_path);
+	std::vector<std::vector<IO_Flow_Parameter_Set*>*>* io_scenarios = read_workload_definitions(workload_defs_file_path);   //io_scenarios存储了负载相关的参数
 
 	int cntr = 1;
 	for (auto io_scen = io_scenarios->begin(); io_scen != io_scenarios->end(); io_scen++, cntr++) {
@@ -285,7 +285,7 @@ int main(int argc, char* argv[])
 
 		exec_params->Host_Configuration.IO_Flow_Definitions.clear();
 		for (auto io_flow_def = (*io_scen)->begin(); io_flow_def != (*io_scen)->end(); io_flow_def++) {
-			exec_params->Host_Configuration.IO_Flow_Definitions.push_back(*io_flow_def);
+			exec_params->Host_Configuration.IO_Flow_Definitions.push_back(*io_flow_def);									//将负载相关的参数存储进了exec_params->Host_Configuration.IO_Flow_Definitions中，也就是说可以通过exec_params访问到负载有关的参数
 		}
 
 		SSD_Device ssd(&exec_params->SSD_Device_Configuration, &exec_params->Host_Configuration.IO_Flow_Definitions);//Create SSD_Device based on the specified parameters

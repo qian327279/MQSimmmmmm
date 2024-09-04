@@ -82,7 +82,7 @@ namespace Host_Components
 
 		//NVMe host-to-device communication variables
 		IO_Flow_Priority_Class::Priority priority_class;
-		NVMe_Queue_Pair nvme_queue_pair;
+		NVMe_Queue_Pair nvme_queue_pair;                             //这代表了NVMe的提交队列和完成队列的相关信息
 		uint16_t io_queue_id;
 		uint16_t nvme_submission_queue_size;
 		uint16_t nvme_completion_queue_size;

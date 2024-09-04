@@ -77,7 +77,7 @@ protected:
 	sim_time_type writeReasonableSuspensionTimeForRead;
 	sim_time_type eraseReasonableSuspensionTimeForRead; //the time period
 	sim_time_type eraseReasonableSuspensionTimeForWrite;
-	flash_chip_ID_type *Round_robin_turn_of_channel; //Used for round-robin service of the chips in channels
+	flash_chip_ID_type *Round_robin_turn_of_channel; //使用轮询方式访问每个通道的闪存芯片，其记录每个通道已经轮到哪个芯片了
 
 	static TSU_Base *_my_instance;
 	std::list<NVM_Transaction_Flash *> transaction_receive_slots;  //Stores the transactions that are received for sheduling
@@ -90,6 +90,8 @@ protected:
 	static void handle_channel_idle_signal(flash_channel_ID_type);
 	static void handle_chip_idle_signal(NVM::FlashMemory::Flash_Chip *chip);
 	int opened_scheduling_reqs;
+
+	//按优先级处理给定闪存芯片的请求，优先处理读事务，然后是写事务，最后才是擦除事务
 	void process_chip_requests(NVM::FlashMemory::Flash_Chip* chip)
 	{
 		if (!_my_instance->service_read_transaction(chip)) {

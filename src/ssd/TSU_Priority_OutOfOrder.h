@@ -44,16 +44,16 @@ public:
     void Report_results_in_XML(std::string name_prefix, Utils::XmlWriter &xmlwriter);
 
 private:
-    Flash_Transaction_Queue ***UserReadTRQueue;
+    Flash_Transaction_Queue ***UserReadTRQueue;    //这说明每个chip上都有一个队列， 三级指针说明这个队列有三级，指针的每一级分别指明了通道，chip，最后一级会说明队列的优先级，分别是URGENT,HIGH,MEDIUM,LOW
     Flash_Transaction_Queue ***UserWriteTRQueue;
     Flash_Transaction_Queue **GCReadTRQueue;
     Flash_Transaction_Queue **GCWriteTRQueue;
     Flash_Transaction_Queue **GCEraseTRQueue;
     Flash_Transaction_Queue **MappingReadTRQueue;
     Flash_Transaction_Queue **MappingWriteTRQueue;
-    IO_Flow_Priority_Class::Priority **nextPriorityClassRead;
-    IO_Flow_Priority_Class::Priority **nextPriorityClassWrite;
-    int **currentWeightRead;
+    IO_Flow_Priority_Class::Priority **nextPriorityClassRead;           //记录每个芯片在下一次调度时使用的优先级
+    IO_Flow_Priority_Class::Priority **nextPriorityClassWrite;          
+    int **currentWeightRead;                                            //存储每个通道和芯片的当前读取权重
     int **currentWeightWrite;
 
     bool service_read_transaction(NVM::FlashMemory::Flash_Chip *chip);

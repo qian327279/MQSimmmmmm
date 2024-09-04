@@ -58,7 +58,7 @@ namespace SSD_Components
 					default:
 						PRINT_ERROR("Unexpected situation in the GC_and_WL_Unit_Base function!")
 				}
-				if (_my_instance->block_manager->Block_has_ongoing_gc_wl(transaction->Address)) {
+				if (_my_instance->block_manager->Block_has_ongoing_gc_wl(transaction->Address)) {//检查指定地址的块是否在进行GC或WL操作
 					if (_my_instance->block_manager->Can_execute_gc_wl(transaction->Address)) {
 						NVM::FlashMemory::Physical_Page_Address gc_wl_candidate_address(transaction->Address);
 						Block_Pool_Slot_Type* block = &pbke->Blocks[transaction->Address.BlockID];

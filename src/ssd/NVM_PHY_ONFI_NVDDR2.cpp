@@ -65,6 +65,7 @@ namespace SSD_Components {
 		return channels[channelID]->GetStatus();
 	}
 
+	//查找芯片通过两个参数，1：通道id，2：对应通道上的chip的id
 	inline NVM::FlashMemory::Flash_Chip* NVM_PHY_ONFI_NVDDR2::Get_chip(flash_channel_ID_type channelID, flash_chip_ID_type chipID)
 	{
 		return channels[channelID]->Chips[chipID];
@@ -128,8 +129,14 @@ namespace SSD_Components {
 		channels[page_address.ChannelID]->Chips[page_address.ChipID]->Change_memory_status_preconditioning(&page_address, &lpa);
 	}
 	
-	void NVM_PHY_ONFI_NVDDR2::Send_command_to_chip(std::list<NVM_Transaction_Flash*>& transaction_list)
+
+
+
+	//会注册一个传输命令的事件，相关传输事务会放进dieBKE的ActiveTransactions中
+	void NVM_PHY_ONFI_NVDDR2::Send_command_to_chip(std::list<NVM_Transaction_Flash*>& transaction_list)   //也许transaction_list中的事务都是在同一个chip上的事务
 	{
+		unsigned int byte_num = transaction_list.front()->Data_and_metadata_size_in_byte;
+
 		ONFI_Channel_NVDDR2* target_channel = channels[transaction_list.front()->Address.ChannelID];
 
 		NVM::FlashMemory::Flash_Chip* targetChip = target_channel->Chips[transaction_list.front()->Address.ChipID];
@@ -138,17 +145,17 @@ namespace SSD_Components {
 
 		/*If this is not a die-interleaved command execution, and the channel is already busy,
 		* then something illegarl is happening*/
-		if (target_channel->GetStatus() == BusChannelStatus::BUSY && chipBKE->OngoingDieCMDTransfers.size() == 0) {
+		if (target_channel->GetStatus() == BusChannelStatus::BUSY && chipBKE->OngoingDieCMDTransfers.size() == 0) {  //说明通道上有别的芯片在执行命令
 			PRINT_ERROR("Bus " << target_channel->ChannelID << ": starting communication on a busy flash channel!");
 		}
 
 		sim_time_type suspendTime = 0;
 		if (!dieBKE->Free) {
-			if (transaction_list.front()->SuspendRequired) {
-				switch (dieBKE->ActiveTransactions.front()->Type) {
+			if (transaction_list.front()->SuspendRequired) {		 //当前事务需要暂停
+				switch (dieBKE->ActiveTransactions.front()->Type) {  //检查当前正在执行的事务类型
 					case Transaction_Type::WRITE:
-						Stats::IssuedSuspendProgramCMD++;
-						suspendTime = target_channel->ProgramSuspendCommandTime + targetChip->GetSuspendProgramTime();
+						Stats::IssuedSuspendProgramCMD++;			 
+						suspendTime = target_channel->ProgramSuspendCommandTime + targetChip->GetSuspendProgramTime();   //计算擦除暂停所需时间
 						break;
 					case Transaction_Type::ERASE:
 						Stats::IssuedSuspendEraseCMD++;
@@ -157,7 +164,7 @@ namespace SSD_Components {
 					default:
 						PRINT_ERROR("Read suspension is not supported!")
 				}
-				targetChip->Suspend(transaction_list.front()->Address.DieID);
+				targetChip->Suspend(transaction_list.front()->Address.DieID);  //把chip上对应的die给挂起了
 				dieBKE->PrepareSuspend();
 				if (chipBKE->OngoingDieCMDTransfers.size()) {
 					chipBKE->PrepareSuspend();
@@ -168,8 +175,8 @@ namespace SSD_Components {
 		}
 
 		dieBKE->Free = false;
-		dieBKE->ActiveCommand = new NVM::FlashMemory::Flash_Command();
-		for (std::list<NVM_Transaction_Flash*>::iterator it = transaction_list.begin();
+		dieBKE->ActiveCommand = new NVM::FlashMemory::Flash_Command();                    //创建一个新命令，并赋值给该die的ActiveCommand
+		for (std::list<NVM_Transaction_Flash*>::iterator it = transaction_list.begin();   //将command的一些信息放进了dieBKE中
 			it != transaction_list.end(); it++) {
 			dieBKE->ActiveTransactions.push_back(*it);
 			dieBKE->ActiveCommand->Address.push_back((*it)->Address);
@@ -192,11 +199,11 @@ namespace SSD_Components {
 
 				for (std::list<NVM_Transaction_Flash*>::iterator it = transaction_list.begin();
 					it != transaction_list.end(); it++) {
-					(*it)->STAT_transfer_time += target_channel->ReadCommandTime[transaction_list.size()];
+					(*it)->STAT_transfer_time += target_channel->ReadCommandTime[transaction_list.size()];   //将命令传输时间存储到对应的事务对象里面
 				}
-				if (chipBKE->OngoingDieCMDTransfers.size() == 0) {
+				if (chipBKE->OngoingDieCMDTransfers.size() == 0) {					//检查正在进行的命令传输数量是否为0
 					targetChip->StartCMDXfer();
-					chipBKE->Status = ChipStatus::CMD_IN;
+					chipBKE->Status = ChipStatus::CMD_IN;							//chipBKE状态设置为命令传输中
 					chipBKE->Last_transfer_finish_time = Simulator->Time() + suspendTime + target_channel->ReadCommandTime[transaction_list.size()];
 					Simulator->Register_sim_event(Simulator->Time() + suspendTime + target_channel->ReadCommandTime[transaction_list.size()], this,
 						dieBKE, (int)NVDDR2_SimEventType::READ_CMD_ADDR_TRANSFERRED);
@@ -227,8 +234,8 @@ namespace SSD_Components {
 
 					for (std::list<NVM_Transaction_Flash*>::iterator it = transaction_list.begin();
 						it != transaction_list.end(); it++) {
-						(*it)->STAT_transfer_time += target_channel->ProgramCommandTime[transaction_list.size()] + NVDDR2DataInTransferTime((*it)->Data_and_metadata_size_in_byte, target_channel);
-						data_transfer_time += NVDDR2DataInTransferTime((*it)->Data_and_metadata_size_in_byte, target_channel);
+						(*it)->STAT_transfer_time += target_channel->ProgramCommandTime[transaction_list.size()] + NVDDR2DataInTransferTime((*it)->Data_and_metadata_size_in_byte, target_channel);    //累加了命令传输时间也包括了数据传输时间
+						data_transfer_time += NVDDR2DataInTransferTime((*it)->Data_and_metadata_size_in_byte, target_channel);      //写请求的具体数据传输时间
 					}
 					if (chipBKE->OngoingDieCMDTransfers.size() == 0) {
 						targetChip->StartCMDDataInXfer();
@@ -326,7 +333,7 @@ namespace SSD_Components {
 	{
 		int i = 0;
 		for (auto &address : command->Address) {
-			if (address.PlaneID == read_transaction->Address.PlaneID) {
+			if (address.PlaneID == read_transaction->Address.PlaneID) {//因为传入的都是同一个diebke，所以只要保证PlaneID相同就行
 				read_transaction->LPA = command->Meta_data[i].LPA;
 			}
 			i++;
@@ -335,27 +342,27 @@ namespace SSD_Components {
 
 	void NVM_PHY_ONFI_NVDDR2::Execute_simulator_event(MQSimEngine::Sim_Event* ev)
 	{
-		DieBookKeepingEntry* dieBKE = (DieBookKeepingEntry*)ev->Parameters;
-		flash_channel_ID_type channel_id = dieBKE->ActiveTransactions.front()->Address.ChannelID;
+		DieBookKeepingEntry* dieBKE = (DieBookKeepingEntry*)ev->Parameters;								//先获取die的相关记录
+		flash_channel_ID_type channel_id = dieBKE->ActiveTransactions.front()->Address.ChannelID;		//再通过dieBKE获取channel的id
 		ONFI_Channel_NVDDR2* targetChannel = channels[channel_id];
-		NVM::FlashMemory::Flash_Chip* targetChip = targetChannel->Chips[dieBKE->ActiveTransactions.front()->Address.ChipID];
+		NVM::FlashMemory::Flash_Chip* targetChip = targetChannel->Chips[dieBKE->ActiveTransactions.front()->Address.ChipID];  //获取事务的目标chip
 		ChipBookKeepingEntry *chipBKE = &bookKeepingTable[channel_id][targetChip->ChipID];
 
 		switch ((NVDDR2_SimEventType)ev->Type) {
-			case NVDDR2_SimEventType::READ_CMD_ADDR_TRANSFERRED:
+			case NVDDR2_SimEventType::READ_CMD_ADDR_TRANSFERRED:     //读命令传输阶段
 				//DEBUG2("Chip " << targetChip->ChannelID << ", " << targetChip->ChipID << ", " << dieBKE->ActiveTransactions.front()->Address.DieID << ": READ_CMD_ADDR_TRANSFERRED ")
-				targetChip->EndCMDXfer(dieBKE->ActiveCommand);
+				targetChip->EndCMDXfer(dieBKE->ActiveCommand);		 //走到这个地方的时候，命令传输到了chip，但是命令并没有在die上执行
 				for (auto tr : dieBKE->ActiveTransactions) {
 					tr->STAT_execution_time = dieBKE->Expected_finish_time - Simulator->Time();
 				}
-				chipBKE->OngoingDieCMDTransfers.pop();
-				chipBKE->No_of_active_dies++;
-				if (chipBKE->OngoingDieCMDTransfers.size() > 0) {
-					perform_interleaved_cmd_data_transfer(targetChip, chipBKE->OngoingDieCMDTransfers.front());
+				chipBKE->OngoingDieCMDTransfers.pop();				//将命令移出队列
+				chipBKE->No_of_active_dies++;						//可用die增加
+				if (chipBKE->OngoingDieCMDTransfers.size() > 0) {	//检查是否还有正在进行的die命令传输
+					perform_interleaved_cmd_data_transfer(targetChip, chipBKE->OngoingDieCMDTransfers.front());		//chip上还有未完成的命令传输通过这个函数注册新的命令传输事件
 					return;
 				} else {
-					chipBKE->Status = ChipStatus::READING;
-					targetChannel->SetStatus(BusChannelStatus::IDLE, targetChip);
+					chipBKE->Status = ChipStatus::READING;			//如果没有正在进行的命令传输，将芯片设置为读取状态
+					targetChannel->SetStatus(BusChannelStatus::IDLE, targetChip);			//总线设置为空闲状态
 				}
 				break;
 			case NVDDR2_SimEventType::ERASE_SETUP_COMPLETED:
@@ -374,7 +381,7 @@ namespace SSD_Components {
 					targetChannel->SetStatus(BusChannelStatus::IDLE, targetChip);
 				}
 				break;
-			case NVDDR2_SimEventType::PROGRAM_CMD_ADDR_DATA_TRANSFERRED:
+			case NVDDR2_SimEventType::PROGRAM_CMD_ADDR_DATA_TRANSFERRED:      //写指令命令及数据传输阶段，执行到这里的时候，已经把命令和数据传输到目标chip上了
 			case NVDDR2_SimEventType::PROGRAM_COPYBACK_CMD_ADDR_TRANSFERRED:
 				//DEBUG2("Chip " << targetChip->ChannelID << ", " << targetChip->ChipID << ", " << dieBKE->ActiveTransactions.front()->Address.DieID <<  ": PROGRAM_CMD_ADDR_DATA_TRANSFERRED " )
 				targetChip->EndCMDDataInXfer(dieBKE->ActiveCommand);
@@ -392,16 +399,16 @@ namespace SSD_Components {
 					targetChannel->SetStatus(BusChannelStatus::IDLE, targetChip);
 				}
 				break;
-			case NVDDR2_SimEventType::READ_DATA_TRANSFERRED:
+			case NVDDR2_SimEventType::READ_DATA_TRANSFERRED:                  //将读出的数据传回控制器的阶段
 				//DEBUG2("Chip " << targetChip->ChannelID << ", " << targetChip->ChipID << ", " << dieBKE->ActiveTransactions.front()->Address.DieID << ": READ_DATA_TRANSFERRED ")
 				targetChip->EndDataOutXfer(dieBKE->ActiveCommand);
-				copy_read_data_to_transaction((NVM_Transaction_Flash_RD*)dieBKE->ActiveTransfer, dieBKE->ActiveCommand);
+				copy_read_data_to_transaction((NVM_Transaction_Flash_RD*)dieBKE->ActiveTransfer, dieBKE->ActiveCommand);   //将正在执行的命令的元数据赋值到正在进行的传输事务中
 	#if 0
 				if (tr->ExecutionMode != ExecutionModeType::COPYBACK)
 	#endif
-				broadcastTransactionServicedSignal(dieBKE->ActiveTransfer);
+				broadcastTransactionServicedSignal(dieBKE->ActiveTransfer);	//调用GC and WL Unit，Data Cache Manager及Address Mapping Unit这三个的handle_transaction_serviced_signal_from_PHY函数												//通知别的系统已经传输完成，可能会触发一些读操作结束的相关处理函数
 
-				for (std::list<NVM_Transaction_Flash*>::iterator it = dieBKE->ActiveTransactions.begin();
+				for (std::list<NVM_Transaction_Flash*>::iterator it = dieBKE->ActiveTransactions.begin();					//在ActiveTransactions双向链表中删除当前事务（即ActiveTransfer）
 					it != dieBKE->ActiveTransactions.end(); it++) {
 					if ((*it) == dieBKE->ActiveTransfer) {
 						dieBKE->ActiveTransactions.erase(it);
@@ -413,7 +420,7 @@ namespace SSD_Components {
 					dieBKE->ClearCommand();
 				}
 
-				chipBKE->WaitingReadTXCount--;
+				chipBKE->WaitingReadTXCount--;																				//减少等待读取的事务
 				if (chipBKE->No_of_active_dies == 0) {
 					if (chipBKE->WaitingReadTXCount == 0) {
 						chipBKE->Status = ChipStatus::IDLE;
@@ -423,10 +430,10 @@ namespace SSD_Components {
 				}
 				if (chipBKE->Status == ChipStatus::IDLE) {
 					if (dieBKE->Suspended) {
-						send_resume_command_to_chip(targetChip, chipBKE);
+						send_resume_command_to_chip(targetChip, chipBKE);													//有挂起的操作则恢复挂起操作
 					}
 				}
-				targetChannel->SetStatus(BusChannelStatus::IDLE, targetChip);
+				targetChannel->SetStatus(BusChannelStatus::IDLE, targetChip);												//无论有没有恢复挂起操作，下面的通道都应该恢复IDLE状态，因为挂起的操作是在chip上进行的，不会影响通道的状态
 				break;
 			default:
 				PRINT_ERROR("Unknown simulation event specified for NVM_PHY_ONFI_NVDDR2!")
@@ -434,20 +441,22 @@ namespace SSD_Components {
 
 		/* Copyback requests are prioritized over other type of requests since they need very short transfer time.
 		In addition, they are just used for GC purpose. */
+
+		//检查对应模拟事件是否还有等待的copyback操作，有的话就执行命令并更新状态及统计信息
 		if (WaitingCopybackWrites[channel_id].size() > 0) {
 			DieBookKeepingEntry* waitingBKE = WaitingCopybackWrites[channel_id].front();
 			targetChip = channels[channel_id]->Chips[waitingBKE->ActiveTransactions.front()->Address.ChipID];
 			ChipBookKeepingEntry* waitingChipBKE = &bookKeepingTable[channel_id][targetChip->ChipID];
-			if (waitingBKE->ActiveTransactions.size() > 1) {
+			if (waitingBKE->ActiveTransactions.size() > 1) {											//有两种copyback的方式，根据ActiveTransactions的大小判断是不是MULTIPLANE指令
 				Stats::IssuedMultiplaneCopybackProgramCMD++;
-				waitingBKE->ActiveCommand->CommandCode = CMD_PROGRAM_PAGE_COPYBACK_MULTIPLANE;
+				waitingBKE->ActiveCommand->CommandCode = CMD_PROGRAM_PAGE_COPYBACK_MULTIPLANE;				
 			} else {
 				Stats::IssuedCopybackProgramCMD++;
 				waitingBKE->ActiveCommand->CommandCode = CMD_PROGRAM_PAGE_COPYBACK;
 			}
 			targetChip->StartCMDXfer();
 			waitingChipBKE->Status = ChipStatus::CMD_IN;
-			Simulator->Register_sim_event(Simulator->Time() + this->channels[channel_id]->ProgramCommandTime[waitingBKE->ActiveTransactions.size()],
+			Simulator->Register_sim_event(Simulator->Time() + this->channels[channel_id]->ProgramCommandTime[waitingBKE->ActiveTransactions.size()],   //注册相应的copyback事件
 				this, waitingBKE, (int)NVDDR2_SimEventType::PROGRAM_COPYBACK_CMD_ADDR_TRANSFERRED);
 			waitingChipBKE->OngoingDieCMDTransfers.push(waitingBKE);
 
@@ -458,17 +467,17 @@ namespace SSD_Components {
 			}
 
 			WaitingCopybackWrites[channel_id].pop_front();
-			channels[channel_id]->SetStatus(BusChannelStatus::BUSY, targetChip);
+			channels[channel_id]->SetStatus(BusChannelStatus::BUSY, targetChip);                  //channel的状态设置成busy
 
 			return;
-		} else if (WaitingMappingRead_TX[channel_id].size() > 0) {
+		} else if (WaitingMappingRead_TX[channel_id].size() > 0) {								  //检查是否有映射表读事务
 			NVM_Transaction_Flash_RD* waitingTR = (NVM_Transaction_Flash_RD*)WaitingMappingRead_TX[channel_id].front();
 			WaitingMappingRead_TX[channel_id].pop_front();
 			transfer_read_data_from_chip(&bookKeepingTable[channel_id][waitingTR->Address.ChipID],
 				&(bookKeepingTable[channel_id][waitingTR->Address.ChipID].Die_book_keeping_records[waitingTR->Address.DieID]), waitingTR);
 
 			return;
-		} else if (WaitingReadTX[channel_id].size() > 0) {
+		} else if (WaitingReadTX[channel_id].size() > 0) {												
 			NVM_Transaction_Flash_RD* waitingTR = (NVM_Transaction_Flash_RD*)WaitingReadTX[channel_id].front();
 			WaitingReadTX[channel_id].pop_front();
 			transfer_read_data_from_chip(&bookKeepingTable[channel_id][waitingTR->Address.ChipID],
@@ -483,10 +492,14 @@ namespace SSD_Components {
 			return;
 		}
 
+
+		
 		//If the execution reaches here, then the bus channel became idle
 		broadcastChannelIdleSignal(channel_id);
 	}
 
+
+	//这个函数就是chip已经把他该干的事情干完后的一些处理，如果是读操作，说明chip已经把数据读好了，等着传给控制器。如果是写操作，此时已经进行到数据写入到chip中了
 	inline void NVM_PHY_ONFI_NVDDR2::handle_ready_signal_from_chip(NVM::FlashMemory::Flash_Chip* chip, NVM::FlashMemory::Flash_Command* command)
 	{
 		ChipBookKeepingEntry *chipBKE = &_my_instance->bookKeepingTable[chip->ChannelID][chip->ChipID];
@@ -499,14 +512,14 @@ namespace SSD_Components {
 			DEBUG("Chip " << chip->ChannelID << ", " << chip->ChipID << ": finished  read command")
 			chipBKE->No_of_active_dies--;
 			if (chipBKE->No_of_active_dies == 0)//After finishing the last command, the chip state is changed
-				chipBKE->Status = ChipStatus::WAIT_FOR_DATA_OUT;
+				chipBKE->Status = ChipStatus::WAIT_FOR_DATA_OUT;                                      //如果所有die都完成了命令，则更改芯片的状态
 
 			for (std::list<NVM_Transaction_Flash*>::iterator it = dieBKE->ActiveTransactions.begin();
 				it != dieBKE->ActiveTransactions.end(); it++)
 			{
-				chipBKE->WaitingReadTXCount++;
-				if (_my_instance->channels[chip->ChannelID]->GetStatus() == BusChannelStatus::IDLE)
-					_my_instance->transfer_read_data_from_chip(chipBKE, dieBKE, (*it));
+				chipBKE->WaitingReadTXCount++;														  //等待读取的数量增加
+				if (_my_instance->channels[chip->ChannelID]->GetStatus() == BusChannelStatus::IDLE)   //检查通道的状态
+					_my_instance->transfer_read_data_from_chip(chipBKE, dieBKE, (*it));				  //将数据从chip传输到控制器，注册NVDDR2_SimEventType::READ_DATA_TRANSFERRED事件，将通道设置为busy状态
 				else
 				{
 					switch (dieBKE->ActiveTransactions.front()->Source)
@@ -573,6 +586,7 @@ namespace SSD_Components {
 		case CMD_PROGRAM_PAGE_COPYBACK:
 		case CMD_PROGRAM_PAGE_COPYBACK_MULTIPLANE:
 		{
+			//说明闪存芯片上的写操作已经完成
 			DEBUG("Chip " << chip->ChannelID << ", " << chip->ChipID << ": finished program command")
 			int i = 0;
 			for (std::list<NVM_Transaction_Flash*>::iterator it = dieBKE->ActiveTransactions.begin();
@@ -581,8 +595,8 @@ namespace SSD_Components {
 				((NVM_Transaction_Flash_WR*)(*it))->Content = command->Meta_data[i].LPA;
 				_my_instance->broadcastTransactionServicedSignal(*it);
 			}
-			dieBKE->ActiveTransactions.clear();
-			dieBKE->ClearCommand();
+			dieBKE->ActiveTransactions.clear();										//因为闪存芯片上的写操作已经完成，此时删除掉对应dieBKE上的ActiveTransactions即可
+			dieBKE->ClearCommand();													//删除dieBKE中的这个命令
 
 			chipBKE->No_of_active_dies--;
 			if (chipBKE->No_of_active_dies == 0 && chipBKE->WaitingReadTXCount == 0)
@@ -620,6 +634,8 @@ namespace SSD_Components {
 			_my_instance->broadcastChipIdleSignal(chip);
 	}
 
+
+	//读操作将数据从芯片传到控制器的时间在这个函数中计算，并注册相应的传输事件
 	inline void NVM_PHY_ONFI_NVDDR2::transfer_read_data_from_chip(ChipBookKeepingEntry* chipBKE, DieBookKeepingEntry* dieBKE, NVM_Transaction_Flash* tr)
 	{
 		//DEBUG2("Chip " << tr->Address.ChannelID << ", " << tr->Address.ChipID << ": transfer read data started for LPA: " << tr->LPA)
@@ -645,7 +661,7 @@ namespace SSD_Components {
 				chip->StartCMDXfer();
 				bookKeepingTable[chip->ChannelID][chip->ChipID].Status = ChipStatus::CMD_IN;
 				Simulator->Register_sim_event(Simulator->Time() + bookKeepingEntry->DieInterleavedTime,
-					this, bookKeepingEntry, (int)NVDDR2_SimEventType::READ_CMD_ADDR_TRANSFERRED);
+					this, bookKeepingEntry, (int)NVDDR2_SimEventType::READ_CMD_ADDR_TRANSFERRED);       //注册新的读命令事件
 				break;
 			case Transaction_Type::WRITE:
 				if (((NVM_Transaction_Flash_WR*)bookKeepingEntry->ActiveTransactions.front())->RelatedRead == NULL) {
@@ -672,15 +688,17 @@ namespace SSD_Components {
 		target_channel->SetStatus(BusChannelStatus::BUSY, chip);
 	}
 
+
+	//会将整个chip上所有die上挂起的事务都恢复
 	inline void NVM_PHY_ONFI_NVDDR2::send_resume_command_to_chip(NVM::FlashMemory::Flash_Chip* chip, ChipBookKeepingEntry* chipBKE)
 	{
 		//DEBUG2("Chip " << chip->ChannelID << ", " << chip->ChipID << ": resume command " )
-		for (unsigned int i = 0; i < die_no_per_chip; i++) {
+		for (unsigned int i = 0; i < die_no_per_chip; i++) {				//循环，把chip上的每一个die挂起的事务都恢复
 			DieBookKeepingEntry *dieBKE = &chipBKE->Die_book_keeping_records[i];
 			//Since the time required to send the resume command is very small, MQSim ignores it to simplify the simulation
-			dieBKE->PrepareResume();
+			dieBKE->PrepareResume();										//将这个chip上每个die上的挂起事务加入到各自die的ActiveTransactions中
 			chipBKE->PrepareResume();
-			chip->Resume(dieBKE->ActiveCommand->Address[0].DieID);
+			chip->Resume(dieBKE->ActiveCommand->Address[0].DieID);			//经过了上面的dieBKE->PrepareResume之后，现在的ActiveCommand就是挂起的命令
 			switch (dieBKE->ActiveCommand->CommandCode) {
 				case CMD_READ_PAGE:
 				case CMD_READ_PAGE_MULTIPLANE:

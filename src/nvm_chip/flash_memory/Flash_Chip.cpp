@@ -99,11 +99,13 @@ namespace NVM
 			return Dies[die_id]->Planes[plane_id]->Blocks[block_id]->Pages[page_id].Metadata.LPA;
 		}
 
+
+		//将目标die的状态改成busy，注意区分chip的状态和chipbke里面的状态，两个状态不是同时更新的，diebke和chipbke都比die和chip自身要更新的更早
 		void Flash_Chip::start_command_execution(Flash_Command* command)
 		{
 			Die* targetDie = Dies[command->Address[0].DieID];
 
-			//If this is a simple command (not multiplane) then there should be only one address
+			//If this is a simple command (not multiplane) then there should be only one address。如果命令是简单命令，但是地址却有多个，说明是不合法的操作
 			if (command->Address.size() > 1
 				&& (command->CommandCode == CMD_READ_PAGE
 					|| command->CommandCode == CMD_PROGRAM_PAGE
@@ -113,7 +115,7 @@ namespace NVM
 
 			targetDie->Expected_finish_time = Simulator->Time() + Get_command_execution_latency(command->CommandCode, command->Address[0].PageID);
 			targetDie->CommandFinishEvent = Simulator->Register_sim_event(targetDie->Expected_finish_time,
-				this, command, static_cast<int>(Chip_Sim_Event_Type::COMMAND_FINISHED));
+				this, command, static_cast<int>(Chip_Sim_Event_Type::COMMAND_FINISHED));       //注册一个事件，表示命令完成的时间点，事件类型是COMMAND_FINISHED，触发这个事件的时候，chip已经完成了写或读操作
 			targetDie->CurrentCMD = command;
 			targetDie->Status = DieStatus::BUSY;
 			idleDieNo--;
@@ -155,7 +157,7 @@ namespace NVM
 					for (unsigned int planeCntr = 0; planeCntr < command->Address.size(); planeCntr++) {
 						STAT_readCount++;
 						targetDie->Planes[command->Address[planeCntr].PlaneID]->Read_count++;
-						targetDie->Planes[command->Address[planeCntr].PlaneID]->Blocks[command->Address[planeCntr].BlockID]->Pages[command->Address[planeCntr].PageID].Read_metadata(command->Meta_data[planeCntr]);
+						targetDie->Planes[command->Address[planeCntr].PlaneID]->Blocks[command->Address[planeCntr].BlockID]->Pages[command->Address[planeCntr].PageID].Read_metadata(command->Meta_data[planeCntr]);   //页面的元数据被读到了command->Meta_data[planeCntr]中。
 					}
 					break;
 				case CMD_PROGRAM_PAGE:
@@ -189,7 +191,7 @@ namespace NVM
 			}
 
 			//In MQSim, flash chips always announce their status using the ready/busy signal; the controller does not issue a die status read command
-			broadcast_ready_signal(command);
+			broadcast_ready_signal(command);												//调用的是handle_ready_signal_from_chip函数，用于处理信号的结束
 		}
 
 		void Flash_Chip::broadcast_ready_signal(Flash_Command* command)
@@ -202,7 +204,7 @@ namespace NVM
 
 		void Flash_Chip::Suspend(flash_die_ID_type dieID)
 		{
-			STAT_totalExecTime += Simulator->Time() - executionStartTime;
+			STAT_totalExecTime += Simulator->Time() - executionStartTime;       //STAT_totalExecTime用于统计累计的操作时间
 
 			Die* targetDie = Dies[dieID];
 			if (targetDie->Suspended) {
@@ -212,7 +214,7 @@ namespace NVM
 			/*if (targetDie->CurrentCMD & CMD_READ != 0)
 			throw "Suspend is not supported for read operations!";*/
 
-			targetDie->RemainingSuspendedExecTime = targetDie->Expected_finish_time - Simulator->Time();
+			targetDie->RemainingSuspendedExecTime = targetDie->Expected_finish_time - Simulator->Time();   //计算剩余的执行时间
 			Simulator->Ignore_sim_event(targetDie->CommandFinishEvent);//The simulator engine should not execute the finish event for the suspended command
 			targetDie->CommandFinishEvent = NULL;
 
@@ -231,9 +233,10 @@ namespace NVM
 			expectedFinishTime = INVALID_TIME;
 		}
 
-		void Flash_Chip::Resume(flash_die_ID_type dieID)
+		//用于恢复chip上某个指定id的die
+		void Flash_Chip::Resume(flash_die_ID_type dieID)				
 		{
-			Die* targetDie = Dies[dieID];
+			Die* targetDie = Dies[dieID];									//注意区分，这个是DIE，而不是dieBKE，这两者信息并不是同步更新的，dieBKE的挂起信息已经更新了
 			if (!targetDie->Suspended) {
 				PRINT_ERROR("Flash chip " << ID() << ": resume flash command is requested, but there is no suspended flash command!")
 			}
@@ -250,9 +253,9 @@ namespace NVM
 				this->expectedFinishTime = targetDie->Expected_finish_time;
 			}
 
-			targetDie->Status = DieStatus::BUSY;
+			targetDie->Status = DieStatus::BUSY;							//更新die的状态
 			this->idleDieNo--;
-			this->status = Internal_Status::BUSY;
+			this->status = Internal_Status::BUSY;							//更新chip的状态
 			executionStartTime = Simulator->Time();
 		}
 

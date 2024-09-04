@@ -213,7 +213,7 @@ namespace SSD_Components
 	void Flash_Block_Manager_Base::Program_transaction_serviced(const NVM::FlashMemory::Physical_Page_Address& page_address)
 	{
 		PlaneBookKeepingType *plane_record = &plane_manager[page_address.ChannelID][page_address.ChipID][page_address.DieID][page_address.PlaneID];
-		plane_record->Blocks[page_address.BlockID].Ongoing_user_program_count--;
+		plane_record->Blocks[page_address.BlockID].Ongoing_user_program_count--;//当写操作完成后更新内部块计数器，这个计数器为0后才可能成为垃圾的目标
 	}
 
 	void Flash_Block_Manager_Base::Read_transaction_serviced(const NVM::FlashMemory::Physical_Page_Address& page_address)

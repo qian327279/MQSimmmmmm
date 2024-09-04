@@ -20,6 +20,10 @@ namespace SSD_Components
 		ERASE_SETUP_COMPLETED
 	};
 
+	enum class PHY_Status {
+		IDLE,BUSY
+	};
+
 	class DieBookKeepingEntry
 	{
 	public:
@@ -28,7 +32,7 @@ namespace SSD_Components
 		/*The current transactions that are being serviced. For the set of transactions in ActiveTransactions,
 		there is one ActiveCommand that is geting executed on the die. Transaction is a FTL-level concept, and
 		command is a flash chip-level concept*/
-		std::list<NVM_Transaction_Flash*> ActiveTransactions; 
+		std::list<NVM_Transaction_Flash*> ActiveTransactions;					//指向当前在die上执行的命令指针
 		NVM::FlashMemory::Flash_Command* SuspendedCommand;
 		std::list<NVM_Transaction_Flash*> SuspendedTransactions;
 		NVM_Transaction_Flash* ActiveTransfer; //The current transaction 
@@ -53,7 +57,7 @@ namespace SSD_Components
 		{
 			ActiveCommand = SuspendedCommand;
 			Expected_finish_time = Simulator->Time() + RemainingExecTime;
-			ActiveTransactions.insert(ActiveTransactions.begin(), SuspendedTransactions.begin(), SuspendedTransactions.end());
+			ActiveTransactions.insert(ActiveTransactions.begin(), SuspendedTransactions.begin(), SuspendedTransactions.end());  //将挂起的事务插入到活动事务列表中
 			Suspended = false;
 			SuspendedCommand = NULL;
 			SuspendedTransactions.clear();
@@ -77,9 +81,9 @@ namespace SSD_Components
 		sim_time_type Expected_command_exec_finish_time;
 		sim_time_type Last_transfer_finish_time;
 		bool HasSuspend;
-		std::queue<DieBookKeepingEntry*> OngoingDieCMDTransfers;
-		unsigned int WaitingReadTXCount;
-		unsigned int No_of_active_dies;
+		std::queue<DieBookKeepingEntry*> OngoingDieCMDTransfers;    //正在进行命令传输的die队列
+		unsigned int WaitingReadTXCount;							//当前等待的读事务数量
+		unsigned int No_of_active_dies;								//当前正忙的die的数量
 
 		void PrepareSuspend() { HasSuspend = true; No_of_active_dies = 0; }
 		void PrepareResume() { HasSuspend = false; }
@@ -119,6 +123,7 @@ namespace SSD_Components
 		ChipBookKeepingEntry** bookKeepingTable;
 		Flash_Transaction_Queue *WaitingReadTX, *WaitingGCRead_TX, *WaitingMappingRead_TX;
 		std::list<DieBookKeepingEntry*> *WaitingCopybackWrites;
+
 	};
 }
 

@@ -414,9 +414,9 @@ IO_Flow_Base::IO_Flow_Base(const sim_object_id_type &name, uint16_t flow_id, LHA
 						PRINT_ERROR("Unexpteced situation in IO_Flow_Base! Overwriting an unhandled I/O request in the queue!")
 					} else {
 						request->IO_queue_info = *available_command_ids.begin();
-						nvme_software_request_queue[*available_command_ids.begin()] = request;
+						nvme_software_request_queue[*available_command_ids.begin()] = request;		//将请求放入队列，这个队列表示入队的请求
 						available_command_ids.erase(available_command_ids.begin());
-						request_queue_in_memory[nvme_queue_pair.Submission_queue_tail] = request;
+						request_queue_in_memory[nvme_queue_pair.Submission_queue_tail] = request;   //将请求插入到内存中模拟提交队列的队列中
 						NVME_UPDATE_SQ_TAIL(nvme_queue_pair);
 					}
 					request->Enqueue_time = Simulator->Time();

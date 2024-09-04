@@ -7,7 +7,7 @@
 #include "../host/IO_Flow_Trace_Based.h"
 #include "../utils/StringTools.h"
 #include "../utils/Logical_Address_Partitioning_Unit.h"
-
+//经过下面的代码处理，io流相关的参数已经存储进了Host_System的IO_flow中。
 Host_System::Host_System(Host_Parameter_Set* parameters, bool preconditioning_required, SSD_Components::Host_Interface_Base* ssd_host_interface):
 	MQSimEngine::Sim_Object("Host"), preconditioning_required(preconditioning_required)
 {

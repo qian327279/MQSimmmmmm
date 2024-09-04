@@ -477,6 +477,7 @@ namespace SSD_Components
 		return domains[stream_id]->No_of_inserted_entries_in_preconditioning;
 	}
 
+	//将请求放进TSU单元的transaction_receive_slots中，并调用Schedule()函数将transaction_receive_slots中的请求放入chip的队列中，并按照channel，chip的顺序调度这些请求
 	void Address_Mapping_Unit_Page_Level::Translate_lpa_to_ppa_and_dispatch(const std::list<NVM_Transaction*>& transactionList)
 	{
 		for (std::list<NVM_Transaction*>::const_iterator it = transactionList.begin();
@@ -497,7 +498,7 @@ namespace SSD_Components
 					ftl->TSU->Submit_transaction(static_cast<NVM_Transaction_Flash*>(*it));
 					if (((NVM_Transaction_Flash*)(*it))->Type == Transaction_Type::WRITE) {
 						if (((NVM_Transaction_Flash_WR*)(*it))->RelatedRead != NULL) {
-							ftl->TSU->Submit_transaction(((NVM_Transaction_Flash_WR*)(*it))->RelatedRead);
+							ftl->TSU->Submit_transaction(((NVM_Transaction_Flash_WR*)(*it))->RelatedRead);    //有的写事务可能与读事务相关联，例如更新操作需要先读取旧数据然后再写入新数据
 						}
 					}
 				}
