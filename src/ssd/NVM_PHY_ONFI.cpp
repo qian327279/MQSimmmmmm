@@ -13,7 +13,7 @@ namespace SSD_Components {
 	* TSU: For the reads that must be finished for partial writes (first read non updated parts of page data and then merge and write them into the new page)
 	* GarbageCollector: For gc reads, writes, and erases
 	*/
-	void NVM_PHY_ONFI::broadcastTransactionServicedSignal(NVM_Transaction_Flash* transaction)
+	void NVM_PHY_ONFI::broadcastTransactionServicedSignal(NVM_Transaction_Flash* transaction)						//这个函数会删除传入的事务
 	{
 		for (std::vector<TransactionServicedHandlerType>::iterator it = connectedTransactionServicedHandlers.begin();
 			it != connectedTransactionServicedHandlers.end(); it++) {

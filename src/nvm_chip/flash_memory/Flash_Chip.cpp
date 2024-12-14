@@ -202,7 +202,7 @@ namespace NVM
 			}
 		}
 
-		void Flash_Chip::Suspend(flash_die_ID_type dieID)
+		void Flash_Chip::Suspend(flash_die_ID_type dieID)//将相关die的状态改为free，并记录与挂起及恢复操作相关的时间
 		{
 			STAT_totalExecTime += Simulator->Time() - executionStartTime;       //STAT_totalExecTime用于统计累计的操作时间
 

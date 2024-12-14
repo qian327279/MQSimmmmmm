@@ -35,8 +35,10 @@ namespace NVM
 		{
 		public:
 			command_code_type CommandCode;
+			std::vector<int> path;										//用于记录请求预定的路径
 			std::vector<Physical_Page_Address> Address;
 			std::vector<PageMetadata> Meta_data;
+			int controller_number;										//用于存储此命令传输所使用的控制器
 		};
 	}
 }

@@ -25,7 +25,7 @@ namespace SSD_Components
 			channel_count(ChannelCount), chip_no_per_channel(chip_no_per_channel), die_no_per_chip(DieNoPerChip), plane_no_per_die(PlaneNoPerDie){}
 		~NVM_PHY_ONFI() {};
 
-		virtual BusChannelStatus Get_channel_status(flash_channel_ID_type) = 0;
+		virtual BusChannelStatus Get_channel_status(flash_channel_ID_type) = 0;//纯虚函数，任何继承NVM_PHY_ONFI的类都需要实现这些纯虚函数才行
 		virtual NVM::FlashMemory::Flash_Chip* Get_chip(flash_channel_ID_type channel_id, flash_chip_ID_type chip_id) = 0;
 		virtual LPA_type Get_metadata(flash_channel_ID_type channe_id, flash_chip_ID_type chip_id, flash_die_ID_type die_id, flash_plane_ID_type plane_id, flash_block_ID_type block_id, flash_page_ID_type page_id) = 0;//A simplification to decrease the complexity of GC execution! The GC unit may need to know the metadata of a page to decide if a page is valid or invalid. 
 		virtual bool HasSuspendedCommand(NVM::FlashMemory::Flash_Chip* chip) = 0;

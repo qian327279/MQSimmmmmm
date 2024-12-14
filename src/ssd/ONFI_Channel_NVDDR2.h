@@ -5,7 +5,7 @@
 #include "ONFI_Channel_Base.h"
 
 
-#define NVDDR2DataInTransferTime(X,Y) ((X / Y->ChannelWidth / 2) * Y->TwoUnitDataInTime)   //在这个式子中，TwoUnitDataInTime表示的是channel传输一次数据所需要的纳秒数，而ChannelWidth代表的是传输一次的byte数，用x除以ChannelWidth代表这次传输需要传输的次数，乘以TwoUnitDataInTime代表传输这么多次数据总共需要多少纳秒
+#define NVDDR2DataInTransferTime(X,Y) ((X / Y->ChannelWidth / 2) * Y->TwoUnitDataInTime)
 #define NVDDR2DataOutTransferTime(X,Y) ((X / Y->ChannelWidth / 2) * Y->TwoUnitDataOutTime)
 
 
@@ -20,7 +20,7 @@ namespace SSD_Components
 			sim_time_type t_WB = 100, sim_time_type t_WC = 25, sim_time_type t_ADL = 70, sim_time_type t_CALS = 15,
 			sim_time_type t_DQSRE = 15, sim_time_type t_RPRE = 15, sim_time_type t_RHW = 100, sim_time_type t_CCS = 300,
 			sim_time_type t_WPST = 6, sim_time_type t_WPSTH = 15);
-		//其中t_RC=(double)1000 / parameters->Channel_Transfer_Rate) * 2，因为最后的单位是纳秒，而parameters->Channel_Transfer_Rate自带10的6次方，所以乘以10的3次方，计算出的结果就是一次传输需要的时间，单位为纳秒
+
 
 		sim_time_type TwoUnitDataOutTime; //The DDR delay for two-unit device data out
 		sim_time_type ReadCommandTime[5];//Read command transfer time for different number of planes
@@ -41,7 +41,7 @@ namespace SSD_Components
 
 		//flash timing parameters
 		sim_time_type t_DBSY; //Dummy busy time, e.g. 500ns
-	
+
 		//ONFI NVDDR2 command and address protocol timing parameters
 		sim_time_type t_CS; //CE setup, e.g. 20ns
 		sim_time_type t_RR; //Ready to data output, e.g. 20ns
@@ -49,13 +49,13 @@ namespace SSD_Components
 		sim_time_type t_WC; //WE cycle time, e.g. 25ns
 		sim_time_type t_ADL; //ALE to data loading time, e.g. 70ns
 		sim_time_type t_CALS; //ALE, CLE setup with ODT disabled, e.g. 15
-		
+
 		//ONFI NVDDR2 data output protocol timing paramters
 		sim_time_type t_DQSRE; //Access window of DQS from RE, e.g. 15ns
 		sim_time_type t_RPRE; //Read preamble, e.g. 15ns
 		sim_time_type t_RHW; //Data output to command, address, or data input, 100ns
 		sim_time_type t_CCS; //Change column setup time to data in/out or next command, 300ns
-		
+
 		//ONFI NVDDR2 data input protocol timing paramters
 		sim_time_type t_WPST; //DQS write postamble, e.g. 6ns
 		sim_time_type t_WPSTH; //DQS write postamble hold time, e.g. 15ns
